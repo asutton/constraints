@@ -1,11 +1,15 @@
+#!/usr/bin/env python3
+
 from constr import *
 
+import sys
+import os
 import random
 from datetime import datetime
 
 random.seed(datetime.now())
 
-deepest = 5
+deepest = 3
 count = 0
 
 def atom():
@@ -32,8 +36,32 @@ def gen(depth = 0):
   else:
     return op(Disj, depth)
 
-c = gen()
-print(c)
 
-print(dnf(c))
-print(clauses(c))
+def next_file():
+  files = os.listdir("input")
+  last = max(list(map(lambda x: int(x.split('.')[0]), files)))
+  return last + 1
+
+# Get the next file number to generate.
+next = next_file()
+
+for i in range(1, 100):
+  count = 0
+  c = gen()
+  print(f"IN: {c}")
+  d = dnf(c)
+  print(f"DNF:    {d}")
+
+  app = approx(c)
+  act = actual(d)
+
+  print(f"APPROX: {app}")
+  print(f"ACTUAL: {act}")
+
+  if app != act:
+    sys.stderr.write(f"* FAILED: {c}\n")
+    sys.stderr.write(f"- saved as {next}.txt\n")
+    f = open(f"input/{next}.txt", "w")
+    f.write(f"{str(c)}\n")
+    f.close()
+    next += 1

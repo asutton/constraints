@@ -1,0 +1,3 @@
+ 
+ (((p1 or p2) or p3) or ((p4 and p5) and (p6 or p7)))
+ 

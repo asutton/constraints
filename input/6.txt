@@ -1,0 +1,3 @@
+
+(a or b) and ((p or q) and (x or y) and (m or n))
+

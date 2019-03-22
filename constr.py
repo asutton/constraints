@@ -1,6 +1,21 @@
 
 from collections import deque
 
+class Counter:
+  def __init__(self, n):
+    self.value = n
+
+  def __iadd__(self, n):
+    self.value += n
+    return self
+
+  def __imul__(self, n):
+    self.value *= n
+    return self
+
+  def __str__(self):
+    return str(self.value)
+
 class Constr:
   pass
 
@@ -9,11 +24,35 @@ class Conj(Constr):
     self.lhs = lhs
     self.rhs = rhs
 
+  def opstr(self, e):
+    # Add parens if the precedence of an operand is less than
+    # the precedence of this expression.
+    if type(e) is Disj:
+      return f"({e})"
+    else:
+      return str(e)
+
   def __str__(self):
+    # return f"{self.opstr(self.lhs)} and {self.opstr(self.rhs)}"
     return f"({self.lhs} and {self.rhs})"
 
+
   def __repr__(self):
-    return f"Conj({repr(self.lhs)}, {repr(self.rhs)}))"
+    return f"Conj({repr(self.lhs)}, {repr(self.rhs)})"
+
+  def dot(self, f, n):
+    num = n.value
+    n += 1
+    this = f"and{num}"
+    node = f"{this}[label=\"and\"];\n"
+    f.write(node)
+    lhs = self.lhs.dot(f, n)
+    rhs = self.rhs.dot(f, n)
+    larrow = f"{this} -> {lhs};\n"
+    rarrow = f"{this} -> {rhs};\n"
+    f.writelines([larrow, rarrow])
+    return this
+
 
 class Disj(Constr):
   def __init__(self, lhs, rhs):
@@ -24,7 +63,20 @@ class Disj(Constr):
     return f"({self.lhs} or {self.rhs})"
 
   def __repr__(self):
-    return f"Disj({repr(self.lhs)}, {repr(self.rhs)}))"
+    return f"Disj({repr(self.lhs)}, {repr(self.rhs)})"
+
+  def dot(self, f, n):
+    num = n.value
+    n += 1
+    this = f"or{num}"
+    node = f"{this}[label=\"or\"];\n"
+    f.write(node)
+    lhs = self.lhs.dot(f, n)
+    rhs = self.rhs.dot(f, n)
+    larrow = f"{this} -> {lhs};\n"
+    rarrow = f"{this} -> {rhs};\n"
+    f.writelines([larrow, rarrow])
+    return this
 
 class Atom(Constr):
   def __init__(self, id):
@@ -35,6 +87,20 @@ class Atom(Constr):
 
   def __repr__(self):
     return f"Atom({self.id})"
+
+  def dot(self, f, n):
+    num = n.value
+    n += 1
+    this = f"p{num}"
+    node = f"{this}[label=\"{self.id}\"];\n"
+    f.write(node)
+    return this
+
+def dot(c, f):
+  f.write("digraph G {\n")
+  n = Counter(0)
+  c.dot(f, n)
+  f.write("}")
 
 class Token:
   eof = 0
@@ -178,19 +244,19 @@ def dist(c, lhs, rhs, depth):
   if type(lhs) is Disj:
     if type(rhs) is Disj: # (a or b) and (p or q)
       r = foil(lhs, rhs, depth)
-      print(f"{2 * depth * ' '}GOT FOIL: {r}")
+      # print(f"{2 * depth * ' '}GOT FOIL: {r}")
       return r
     else:                 # (p or q) and a
       r = distl(lhs, rhs, depth)
-      print(f"{2 * depth * ' '}GOT DISTL: {r}")
+      # print(f"{2 * depth * ' '}GOT DISTL: {r}")
       return r
   elif type(rhs) is Disj: # a and (p or q)
     r = distr(lhs, rhs, depth)
-    print(f"{2 * depth * ' '}GOT DISTR: {r}")
+    # print(f"{2 * depth * ' '}GOT DISTR: {r}")
     return r      
   else:                   # a and p -- not distributed.
     r = Conj(lhs, rhs)
-    print(f"{2 * depth * ' '}GOT CONJ: {r}")
+    # print(f"{2 * depth * ' '}GOT CONJ: {r}")
     return r
 
   assert False
@@ -232,11 +298,11 @@ def foil(lhs, rhs, depth):
   return Disj(Disj(Disj(f, o), i), l)
 
 def dnf(c, depth = 0):
-  print(f"{2 * depth * ' '}DNF: {c}")
+  # print(f"{2 * depth * ' '}DNF: {c}")
 
   # Already in DNF.
   if type(c) is Atom:
-    print(f"{2 * depth * ' '}GOT ATOM: {c}")
+    # print(f"{2 * depth * ' '}GOT ATOM: {c}")
     return c
 
   lhs = dnf(c.lhs, depth + 1)
@@ -244,7 +310,7 @@ def dnf(c, depth = 0):
 
   # Already in DNF (a or b)
   if type(c) is Disj:
-    print(f"{2 * depth * ' '}GOT DNF: {c}")
+    # print(f"{2 * depth * ' '}GOT DNF: {c}")
     return Disj(lhs, rhs)
 
   # May not be in DNF -- may require distribution
@@ -253,64 +319,95 @@ def dnf(c, depth = 0):
 
   assert False
 
-class Counter:
-  def __init__(self, n):
-    self.value = n
-
-  def __iadd__(self, n):
-    self.value += n
-    return self
-
-  def __imul__(self, n):
-    self.value *= n
-    return self
-
-  def __str__(self):
-    return str(self.value)
-
-def count(c, n, depth = 0):
-  print(f"{2 * depth * ' '}COUNT: {c} -- {n}")
-  print(f"{2 * depth * ' '}COUNT: {repr(c)}")
+def approx1(c, depth = 0):
+  print(f"{2 * depth * ' '}APPROX: {c}")
 
   if type(c) is Atom:
-    print(f"{2 * depth * ' '}GOT DNF: 0")
-    return 0
+    print(f"{2 * depth * ' '}ATOM: {c} -> 0/0")
+    return (0, 0)
 
-  lhs = c.lhs
-  rhs = c.rhs
+  # Recursively count clauses in each subtree.
+  p1 = approx1(c.lhs, depth + 1)
+  p2 = approx1(c.rhs, depth + 2)
+  
+  # Get the number of nodes in each subtree.
+  n1 = p1[0]
+  n2 = p2[0]
+
+  # Get the number of combinatoric distributions
+  # in each subtree.
+  d1 = p1[1]
+  d2 = p2[1]
 
   if type(c) is Disj:
-    n += 1
-    count(lhs, n, depth + 1)
-    count(rhs, n, depth + 1)
-    print(f"{2 * depth * ' '}GOT DNF: {n}")
-    return
+    # The additional number of subproblems depends on whether
+    # this is a disjunction of CNF-like formulas or a disjunction
+    # of disjunctions.
+
+    # If both branches are disjunctions, then we're just
+    # combining subproblems; this does not create more.
+    if (type(c.lhs) is Disj) and (type(c.rhs) is Disj):
+      return (n1 + n2, d1 + d2)
+
+    # If only one branch is a disjunction, then this disjunction
+    # adds one more clause.
+    if (type(c.lhs) is Disj) != (type(c.rhs) is Disj):
+      # If either branch resulted in a distribution, then this
+      # will not contribute to the overall count.
+      if d1 or d2:
+        print(f"{2 * depth * ' '}LINEAR 1: {c} -> {1 + n1 + n2}/{d1 + d2}")
+        return (n1 + n2, d1 + d2)
+
+      # Otherwise, this will contribute 1 clause.
+      print(f"{2 * depth * ' '}LINEAR 2: {c} -> {1 + n1 + n2}/{d1 + d2}")
+      return (1 + n1 + n2, d1 + d2)
+
+    # If either side was a conjunction there may have been a
+    # distribution, so this contributes only one clause.
+    if type(c.lhs) is Conj or type(c.rhs) is Conj:
+      if d1 or d2:
+        print(f"{2 * depth * ' '}PRIOR DIST: {c} -> {1 + n1 + n2}/{d1 + d2}")
+        return (1 + n1 + n2, d1 + d2)
+
+    # Otherwise, we have a disjunction of clauses in CNF (on
+    # the surface), and this will contribute two subproblems.
+    print(f"{2 * depth * ' '}NEW: {c} -> {2 + n1 + n2}/{d1 + d2}")
+    return (2 + n1 + n2, d1 + d2)
 
   if type(c) is Conj:
-    if type(lhs) is Disj:
-      if type(rhs) is Disj: # (a or b) and (p or q)
-        n *= 2
-        count(lhs, n, depth + 1)
-        n *= 2
-        count(rhs, n, depth + 1)
-        n += 1
-        print(f"{2 * depth * ' '}GOT FOIL: {n}")
-        return
-      else:                 # (p or q) and a
-        count(lhs, n, depth + 1)
-        count(rhs, n, depth + 1)
-        print(f"{2 * depth * ' '}GOT DISTL: {n}")
-        return n
-    elif type(rhs) is Disj: # a and (p or q)
-      count(lhs, n, depth + 1)
-      count(rhs, n, depth + 1)
-      print(f"{2 * depth * ' '}GOT DISTR: {n}")
-      return
-    else:                   # a and p -- not distributed.
-      print(f"{2 * depth * ' '}GOT CNF: {n}")
-      return
+    # The additional number of subproblems depends on whether
+    # the conjunction is distributed over disjunctions.
 
-def clauses(c):
-  n = Counter(1)
-  count(c, n)
-  return n.value
+    # This is a combinatoric distribution.
+    if type(c.lhs) is Disj and type(c.rhs) is Disj:
+      print(f"{2 * depth * ' '}FOIL: {c} -> {n1 * n2}/{1 + d1 + d2}")
+      return (n1 * n2, 1 + d1 + d2)
+
+    # If either side is a disjunction and there was a distribution,
+    # then this will also produce a combinatoric distribution.
+    if type(c.lhs) is Disj or type(c.rhs) is Disj:
+      if d1 or d2:
+        print(f"{2 * depth * ' '}REDIST 1: {c} -> {n1 * n2}/{1 + d1 + d2}")
+        return (n1 * n2, 1 + d1 + d2)
+      else:
+        print(f"{2 * depth * ' '}REDIST 2: {c} -> {n1 * n2}/{1 + d1 + d2}")
+        return (n1 + n2, 1 + d1 + d2)
+
+    # Otherwise, this is not a distribution.
+    print(f"{2 * depth * ' '}KEEP: {c} -> {n1 + n2}/{d1 + d2}")
+    return (n1 + n2, d1 + d2)
+
+  assert False
+
+def approx(c):
+  n, d = approx1(c)
+  return n if n else 1 # Adjust 0's to 1s
+
+def visit(c):
+  if type(c) is Disj:
+    return 1 + visit(c.lhs) + visit(c.rhs)
+  else:
+    return 0
+
+def actual(c):
+  return 1 + visit(c)

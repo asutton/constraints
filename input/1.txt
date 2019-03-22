@@ -1,2 +1,1 @@
-
 a and (p or q or r or s)

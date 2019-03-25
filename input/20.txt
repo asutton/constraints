@@ -1,0 +1,1 @@
+((p1 and ((p2 and p3) and (p4 or p5))) and (((p6 or p7) or (p8 and p9)) or p10))

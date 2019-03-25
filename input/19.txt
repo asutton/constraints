@@ -1,0 +1,1 @@
+(p1 or (p2 and ((p3 and p4) and (p5 or p6))))

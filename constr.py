@@ -319,88 +319,341 @@ def dnf(c, depth = 0):
 
   assert False
 
-def approx1(c, depth = 0):
-  print(f"{2 * depth * ' '}APPROX: {c}")
 
-  if type(c) is Atom:
-    print(f"{2 * depth * ' '}ATOM: {c} -> 0/0")
-    return (0, 0)
 
+def recur(c, depth):
   # Recursively count clauses in each subtree.
-  p1 = approx1(c.lhs, depth + 1)
-  p2 = approx1(c.rhs, depth + 2)
+  p1 = approx2(c.lhs, depth + 1)
+  p2 = approx2(c.rhs, depth + 1)
   
   # Get the number of nodes in each subtree.
   n1 = p1[0]
   n2 = p2[0]
 
-  # Get the number of combinatoric distributions
-  # in each subtree.
+  # Get the number of distributions in each subtree.
   d1 = p1[1]
   d2 = p2[1]
 
-  if type(c) is Disj:
-    # The additional number of subproblems depends on whether
-    # this is a disjunction of CNF-like formulas or a disjunction
-    # of disjunctions.
+  return n1, n2, d1, d2
 
-    # If both branches are disjunctions, then we're just
-    # combining subproblems; this does not create more.
-    if (type(c.lhs) is Disj) and (type(c.rhs) is Disj):
-      return (n1 + n2, d1 + d2)
+## Disjunction cases
 
-    # If only one branch is a disjunction, then this disjunction
-    # adds one more clause.
-    if (type(c.lhs) is Disj) != (type(c.rhs) is Disj):
-      # If either branch resulted in a distribution, then this
-      # will not contribute to the overall count.
-      if d1 or d2:
-        print(f"{2 * depth * ' '}LINEAR 1: {c} -> {1 + n1 + n2}/{d1 + d2}")
-        return (n1 + n2, d1 + d2)
+def case_disj_dd(c, depth):
+  # (a or b) or (p or q)
+  # Combines clauses.
+  n1, n2, d1, d2 = recur(c, depth)
+  n = n1 + n2
+  d = d1 or d2
+  print(f"{2 * depth * ' '}<<< D of DD: {c} -> {n}/{d}")
+  return (n, d)
 
-      # Otherwise, this will contribute 1 clause.
-      print(f"{2 * depth * ' '}LINEAR 2: {c} -> {1 + n1 + n2}/{d1 + d2}")
-      return (1 + n1 + n2, d1 + d2)
+def case_disj_dc(c, depth):
+  # (a or b) or (p and q)
+  n1, n2, d1, d2 = recur(c, depth)
+  if d2: # RHS was distributed; just combines
+    n = n1 + n2
+    d = d1 or d2
+    print(f"{2 * depth * ' '}<<< D of D*: {c} -> {n}/{d}")
+    return (n, d)
+  else: # No distributions; additive increase.
+    n = 1 + n1 + n2 # n2 is almost certainly 0
+    d = d1 or d2
+    print(f"{2 * depth * ' '}<<< D of DC: {c} -> {n}/{d}")
+    return (n, d)
 
-    # If either side was a conjunction there may have been a
-    # distribution, so this contributes only one clause.
-    if type(c.lhs) is Conj or type(c.rhs) is Conj:
-      if d1 or d2:
-        print(f"{2 * depth * ' '}PRIOR DIST: {c} -> {1 + n1 + n2}/{d1 + d2}")
-        return (1 + n1 + n2, d1 + d2)
+def case_disj_dx(c, depth):
+  # (a or b) or x
+  # Additive increase
+  n1, n2, d1, d2 = recur(c, depth)
+  n = 1 + n1
+  d = d1
+  print(f"{2 * depth * ' '}<<< D of DX: {c} -> {n}/{d}")
+  return (n, d)
 
-    # Otherwise, we have a disjunction of clauses in CNF (on
-    # the surface), and this will contribute two subproblems.
-    print(f"{2 * depth * ' '}NEW: {c} -> {2 + n1 + n2}/{d1 + d2}")
-    return (2 + n1 + n2, d1 + d2)
+def case_disj_cd(c, depth):
+  # (a and b) or (p or q)
+  n1, n2, d1, d2 = recur(c, depth)
+  if d1: # LHS was distributed; combines clauses.
+    n = n1 + n2
+    d = d1 or d2
+    print(f"{2 * depth * ' '}<<< D of *D: {c} -> {n}/{d}")
+    return (n, d)
+  else: # No distributions; additive increase.
+    n = 1 + n1 + n2 # n1 is almost certainly 0
+    d = d1 or d2
+    print(f"{2 * depth * ' '}<<< D of CD: {c} -> {n}/{d}")
+    return (n, d)
 
-  if type(c) is Conj:
-    # The additional number of subproblems depends on whether
-    # the conjunction is distributed over disjunctions.
+def case_disj_cc(c, depth):
+  # (a and b) or (p and q)
+  n1, n2, d1, d2 = recur(c, depth)
+  if d1 and d2: # LHS and RHS were distributed; combines clauses.
+    n = n1 + n2
+    d = True
+    print(f"{2 * depth * ' '}<<< D of **: {c} -> {n}/{d}")
+    return (n, d)
+  
+  # FIXME: The 2nd and 3rd cases can be combined.
+  if d1 and not d2: # LHS was distributed; additive increase
+    n = 1 + n1 + n2 # n2 is almost certainly 0
+    d = d1
+    print(f"{2 * depth * ' '}<<< D of *C: {c} -> {n}/{d}")
+    return (n, d)
 
-    # This is a combinatoric distribution.
-    if type(c.lhs) is Disj and type(c.rhs) is Disj:
-      print(f"{2 * depth * ' '}FOIL: {c} -> {n1 * n2}/{1 + d1 + d2}")
-      return (n1 * n2, 1 + d1 + d2)
+  if d2 and not d1: # RHS was distributed; additive increase
+    n = 1 + n1 + n2 # n1 is almost certainly 0
+    d = d2
+    print(f"{2 * depth * ' '}<<< D of C*: {c} -> {n}/{d}")
+    return (n, d)
 
-    # If either side is a disjunction and there was a distribution,
-    # then this will also produce a combinatoric distribution.
-    if type(c.lhs) is Disj or type(c.rhs) is Disj:
-      if d1 or d2:
-        print(f"{2 * depth * ' '}REDIST 1: {c} -> {n1 * n2}/{1 + d1 + d2}")
-        return (n1 * n2, 1 + d1 + d2)
-      else:
-        print(f"{2 * depth * ' '}REDIST 2: {c} -> {n1 * n2}/{1 + d1 + d2}")
-        return (n1 + n2, 1 + d1 + d2)
+  # No distributions
+  if not d1 and not d2:          
+    n = 2 + n1 + n2 # n1, n2 are almost certainly 0
+    d = False
+    print(f"{2 * depth * ' '}<<< D of CC: {c} -> {n}/{d}")
+    return (n, d)
 
-    # Otherwise, this is not a distribution.
-    print(f"{2 * depth * ' '}KEEP: {c} -> {n1 + n2}/{d1 + d2}")
-    return (n1 + n2, d1 + d2)
+def case_disj_cx(c, depth):
+  # (a and b) or x
+  n1, n2, d1, d2 = recur(c, depth)
+  assert n2 == 0 and not d2
+  if d1: # LHS was distributed; additive increase
+    n = 1 + n1
+    d = d1
+    print(f"{2 * depth * ' '}<<< D of *X: {c} -> {n}/{d}")
+    return (n, d)
+  else:
+    n = 2 + n1 # n1 is almost certainly 0
+    d = False
+    print(f"{2 * depth * ' '}<<< D of CX: {c} -> {n}/{d}")
+    return (n, d)
+
+def case_disj_xd(c, depth):
+  # x or (p or q)
+  # Additive increase
+  n1, n2, d1, d2 = recur(c, depth)
+  n = 1 + n2
+  d = d2
+  print(f"{2 * depth * ' '}<<< D of XD: {c} -> {n}/{d}")
+  return (n, d)
+
+def case_disj_xc(c, depth):
+  # x or (p and q)
+  n1, n2, d1, d2 = recur(c, depth)
+  assert n1 == 0 and not d1
+  if d2: # RHS was distributed; additive increase
+    n = 1 + n2
+    d = d2
+    print(f"{2 * depth * ' '}<<< D of X*: {c} -> {n}/{d}")
+    return (n, d)
+  else:
+    n = 2 + n2 # n2 is almost certainly 0
+    d = False
+    print(f"{2 * depth * ' '}<<< D of XC: {c} -> {n}/{d}")
+    return (n, d)
+
+def case_disj_xx(c, depth):
+  # x or y
+  # Creates two clauses.
+  n1, n2, d1, d2 = recur(c, depth) # Can short-circuit
+  print(f"{2 * depth * ' '}<<< D of XX: {c} -> {2}/{0}")
+  return (2, 0)
+
+def case_disj(c, depth):
+  # print(f"{2 * depth * ' '}>>> D of ??: {c}")
+  if type(c.lhs) is Disj: # (a or b) or _
+    if type(c.rhs) is Disj: # (a or b) or (p or q)
+      return case_disj_dd(c, depth)
+    elif type(c.rhs) is Conj: # (a or b) or (p and q)
+      return case_disj_dc(c, depth)
+    elif type(c.rhs) is Atom: # (a or b) or p
+      return case_disj_dx(c, depth)
+  
+  if type(c.lhs) is Conj: # (a and b) or _
+    if type(c.rhs) is Disj: # (a and b) or (p or q)
+      return case_disj_cd(c, depth)
+    if type(c.rhs) is Conj: # (a and b) or (p and q)
+      return case_disj_cc(c, depth)
+    if type(c.rhs) is Atom: # (a and b) or x
+      return case_disj_cx(c, depth)
+
+  if type(c.lhs) is Atom: # x or _
+    if type(c.rhs) is Disj: # x or (p or q)
+      return case_disj_xd(c, depth)
+    if type(c.rhs) is Conj: # x or (p and q)
+      return case_disj_xc(c, depth)
+    if type(c.rhs) is Atom: # x or y
+      return case_disj_xx(c, depth)
+
+
+## Conjunction cases
+
+def case_conj_dd(c, depth):
+  # (a or b) and (p or q)
+  # Applies foil.
+  n1, n2, d1, d2 = recur(c, depth)
+  n = n1 * n2
+  d = True
+  print(f"{2 * depth * ' '}<<< C of DD: {c} -> {n}/{d}")
+  return (n, d)
+
+def case_conj_dc(c, depth):
+  # (a or b) and (p and q)
+  n1, n2, d1, d2 = recur(c, depth)
+  if d2: # RHS was previously distributed; applies foil.
+    n = n1 * n2
+    d = True
+    print(f"{2 * depth * ' '}<<< C of D*: {c} -> {n}/{d}")
+    return (n, d)
+  else: # Not distributed; just distributes;
+    n = n1 + n2 # n2 is almost certainly 0
+    d = True
+    print(f"{2 * depth * ' '}<<< C of DC: {c} -> {n}/{d}")
+    return (n, d)
+
+def case_conj_dx(c, depth):
+  # (a or b) and x
+  # Just distributes x across.
+  n1, n2, d1, d2 = recur(c, depth)
+  n = n1
+  d = True
+  print(f"{2 * depth * ' '}<<< C of DX: {c} -> {n}/{d}")
+  return (n, d)
+
+def case_conj_cd(c, depth):
+  # (a and b) or (p or q)
+  n1, n2, d1, d2 = recur(c, depth)
+  if d1: # LHS was previously distributed; applies foil.
+    n = n1 * n2
+    d = True
+    print(f"{2 * depth * ' '}<<< C of D*: {c} -> {n}/{d}")
+    return (n, d)
+  else: # Not distributed; just distributes
+    n = n1 + n2 # n1 is almost certainly 0
+    d = True
+    print(f"{2 * depth * ' '}<<< C of DC: {c} -> {n}/{d}")
+    return (n, d)
+
+def case_conj_cc(c, depth):
+  # (a and b) or (p and q)
+  n1, n2, d1, d2 = recur(c, depth)
+  if d1 and d2: # LHS and RHS were distributed; applies foil
+    n = n1 * n2
+    d = True
+    print(f"{2 * depth * ' '}<<< C of **: {c} -> {n}/{d}")
+    return (n, d)
+  
+  # FIXME: The 2nd and 3rd cases can be combined.
+  if d1 and not d2: # LHS was distributed; just distributes.
+    n = n1 + n2 # n2 is almost certainly 0
+    d = True
+    print(f"{2 * depth * ' '}<<< C of *C: {c} -> {n}/{d}")
+    return (n, d)
+
+  if d2 and not d1: # RHS was distributed; just distributes.
+    n = n1 + n2 # n1 is almost certainly 0
+    d = True
+    print(f"{2 * depth * ' '}<<< C of C*: {c} -> {n}/{d}")
+    return (n, d)
+
+  if not d1 and not d2: # Neither distributed
+    n = n1 + n2 # n is almost certainly 0.
+    d = False
+    print(f"{2 * depth * ' '}<<< C of CC: {c} -> {n}/{d}")
+    return (n, d)
+
+def case_conj_cx(c, depth):
+  # (a and b) or x
+  n1, n2, d1, d2 = recur(c, depth)
+  if d1: # LHS was distributed; just distributes x across.
+    n = n1
+    d = True
+    print(f"{2 * depth * ' '}<<< C of *X: {c} -> {n}/{d}")
+    return (n, d)
+  else:
+    n = n1
+    d = False
+    print(f"{2 * depth * ' '}<<< C of CX: {c} -> {n}/{d}")
+    return (n, d)
+
+def case_conj_xd(c, depth):
+  # x or (p or q)
+  # Just distributes x across.
+  n1, n2, d1, d2 = recur(c, depth)
+  n = n2
+  d = True
+  print(f"{2 * depth * ' '}<<< C of XD: {c} -> {n}/{d}")
+  return (n, d)
+
+def case_conj_xc(c, depth):
+  # x or (p and q)
+  n1, n2, d1, d2 = recur(c, depth)
+  if d1: # RHS was distributed; just distributes x across.
+    n = n2
+    d = True
+    print(f"{2 * depth * ' '}<<< C of X*: {c} -> {n}/{d}")
+    return (n, d)
+  else: # RHS not distributed;
+    n = n2 # Almost certainly 0.
+    d = False
+    print(f"{2 * depth * ' '}<<< C of XC: {c} -> {n}/{d}")
+    return (n, d)
+
+def case_conj_xx(c, depth):
+  # x or y
+  # Contributes no clauses and does not distribute.
+  n1, n2, d1, d2 = recur(c, depth) # Can short-circuit.
+  print(f"{2 * depth * ' '}<<< C of XX: {c} -> {2}/{0}")
+  return (0, False)
+
+
+def case_conj(c, depth):
+  # print(f"{2 * depth * ' '}>>> D of ??: {c}")
+  if type(c.lhs) is Disj: # (a or b) and _
+    if type(c.rhs) is Disj: # (a or b) and (p or q)
+      return case_conj_dd(c, depth)
+    elif type(c.rhs) is Conj: # (a or b) and (p and q)
+      return case_conj_dc(c, depth)
+    elif type(c.rhs) is Atom: # (a or b) and p
+      return case_conj_dx(c, depth)
+  
+  elif type(c.lhs) is Conj: # (a and b) and _
+    if type(c.rhs) is Disj: # (a and b) and (p or q)
+      return case_conj_cd(c, depth)
+    if type(c.rhs) is Conj: # (a and b) and (p and q)
+      return case_conj_cc(c, depth)
+    if type(c.rhs) is Atom: # (a and b) and x
+      return case_conj_cx(c, depth)
+
+  elif type(c.lhs) is Atom: # x and _
+    if type(c.rhs) is Disj: # x and (p or q)
+      return case_conj_xd(c, depth)
+    if type(c.rhs) is Conj: # x and (p and q)
+      return case_conj_xc(c, depth)
+    if type(c.rhs) is Atom: # x and y
+      return case_conj_xx(c, depth)
+
+def case_atom(c, depth):
+    print(f"{2 * depth * ' '}<<< X: {c} -> 0/0")
+    return (0, False)  
+
+def approx2(c, depth = 0):
+  print(f"{2 * depth * ' '}>>> {c}")
+
+  if type(c) is Atom: # x
+    return case_atom(c, depth)
+
+  if type(c) is Disj: # _ or _
+    return case_disj(c, depth)
+
+  if type(c) is Conj: # _ and _
+    return case_conj(c, depth)
 
   assert False
 
+
 def approx(c):
-  n, d = approx1(c)
+  n, d = approx2(c)
   return n if n else 1 # Adjust 0's to 1s
 
 def visit(c):

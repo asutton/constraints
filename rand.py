@@ -9,7 +9,7 @@ from datetime import datetime
 
 random.seed(datetime.now())
 
-deepest = 3
+deepest = 4
 count = 0
 
 def atom():

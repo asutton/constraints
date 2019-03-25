@@ -588,7 +588,7 @@ def case_conj_xd(c, depth):
 def case_conj_xc(c, depth):
   # x or (p and q)
   n1, n2, d1, d2 = recur(c, depth)
-  if d1: # RHS was distributed; just distributes x across.
+  if d2: # RHS was distributed; just distributes x across.
     n = n2
     d = True
     print(f"{2 * depth * ' '}<<< C of X*: {c} -> {n}/{d}")
@@ -603,7 +603,7 @@ def case_conj_xx(c, depth):
   # x or y
   # Contributes no clauses and does not distribute.
   n1, n2, d1, d2 = recur(c, depth) # Can short-circuit.
-  print(f"{2 * depth * ' '}<<< C of XX: {c} -> {2}/{0}")
+  print(f"{2 * depth * ' '}<<< C of XX: {c} -> {0}/{0}")
   return (0, False)
 
 

@@ -496,7 +496,7 @@ def case_disj(c, depth):
     #   return (1 + n1 + n2, d1 or d2)
     # if atom(rhs):
     #   return (1 + n1 + n2, d1 or d2)
-    assert False
+    # assert False
   
   if conj(lhs):
     if (disj(rhs) and d1) or (conj(rhs) and d1 and d2):
@@ -670,30 +670,67 @@ def case_conj_xx(c, depth):
 
 
 def case_conj(c, depth):
-  # print(f"{2 * depth * ' '}>>> D of ??: {c}")
-  if type(c.lhs) is Disj: # (a or b) and _
-    if type(c.rhs) is Disj: # (a or b) and (p or q)
-      return case_conj_dd(c, depth)
-    elif type(c.rhs) is Conj: # (a or b) and (p and q)
-      return case_conj_dc(c, depth)
-    elif type(c.rhs) is Atom: # (a or b) and p
-      return case_conj_dx(c, depth)
+  n1, n2, d1, d2 = recur(c, depth)
+  lhs = c.lhs
+  rhs = c.rhs
   
-  elif type(c.lhs) is Conj: # (a and b) and _
-    if type(c.rhs) is Disj: # (a and b) and (p or q)
-      return case_conj_cd(c, depth)
-    if type(c.rhs) is Conj: # (a and b) and (p and q)
-      return case_conj_cc(c, depth)
-    if type(c.rhs) is Atom: # (a and b) and x
-      return case_conj_cx(c, depth)
+  if disj(lhs):
+    if disj(rhs) or (conj(rhs) and d2):
+      return (n1 * n2, True)
+    if conj(rhs) or atom(rhs):
+      return (n1 + n2, True)
+    assert False
 
-  elif type(c.lhs) is Atom: # x and _
-    if type(c.rhs) is Disj: # x and (p or q)
-      return case_conj_xd(c, depth)
-    if type(c.rhs) is Conj: # x and (p and q)
-      return case_conj_xc(c, depth)
-    if type(c.rhs) is Atom: # x and y
-      return case_conj_xx(c, depth)
+    # if disj(rhs):
+    #   return (n1 * n2, True)
+    # if conj(rhs) and d2:
+    #   return (n1 * n2, True)
+    # if conj(rhs):
+    #   return (n1 + n2, True)
+    # if atom(rhs):
+    #   return (n1 + n2, True)
+    # assert False
+  
+  elif conj(lhs):
+    if (disj(rhs) and d1) or (conj(rhs) and d1 and d2):
+      return (n1 * n2, True)
+    if disj(rhs) or (conj(rhs) and (d1 != d2)) or (atom(rhs) and d1):
+      return (n1 + n2, True)
+    if conj(rhs) or atom(rhs):
+      return (0, False)
+    assert False
+
+    # if disj(rhs) and d1:
+    #   return (n1 * n2, True)
+    # if disj(rhs):
+    #   return (n1 + n2, True)
+    # if conj(rhs) and d1 and d2:
+    #   return (n1 * n2, True)
+    # if conj(rhs) and d1 != d2:
+    #   return (n1 + n2, True)
+    # if conj(rhs):
+    #   return (0, False)
+    # if atom(rhs) and d1:
+    #   return (n1 + n2, True)
+    # if atom(rhs):
+    #   return (0, False)
+    # assert False
+
+  elif atom(lhs):
+    if disj(rhs) or (conj(rhs) and d2):
+      return (n1 + n2, True)
+    if conj(rhs) or atom(rhs):
+      return (0, False)
+    assert False
+
+    # if disj(rhs):
+    #   return (n1 + n2, True)
+    # if conj(rhs) and d2:
+    #   return (n1 + n2, True)
+    # if conj(rhs):
+    #   return (0, False)
+    # if atom(rhs):
+    #   return (0, False)
 
 def case_atom(c, depth):
     print(f"{2 * depth * ' '}<<< X: {c} -> 0/0")

@@ -357,6 +357,7 @@ def case_disj_dc(c, depth):
     return (n, d)
   else: # No distributions; additive increase.
     n = 1 + n1 + n2 # n2 is almost certainly 0
+    assert n2 == 0
     d = d1 or d2
     print(f"{2 * depth * ' '}<<< D of DC: {c} -> {n}/{d}")
     return (n, d)
@@ -380,6 +381,7 @@ def case_disj_cd(c, depth):
     return (n, d)
   else: # No distributions; additive increase.
     n = 1 + n1 + n2 # n1 is almost certainly 0
+    assert n1 == 0
     d = d1 or d2
     print(f"{2 * depth * ' '}<<< D of CD: {c} -> {n}/{d}")
     return (n, d)
@@ -393,15 +395,16 @@ def case_disj_cc(c, depth):
     print(f"{2 * depth * ' '}<<< D of **: {c} -> {n}/{d}")
     return (n, d)
   
-  # FIXME: The 2nd and 3rd cases can be combined.
   if d1 and not d2: # LHS was distributed; additive increase
     n = 1 + n1 + n2 # n2 is almost certainly 0
+    assert n2 == 0
     d = d1
     print(f"{2 * depth * ' '}<<< D of *C: {c} -> {n}/{d}")
     return (n, d)
 
   if d2 and not d1: # RHS was distributed; additive increase
     n = 1 + n1 + n2 # n1 is almost certainly 0
+    assert n1 == 0
     d = d2
     print(f"{2 * depth * ' '}<<< D of C*: {c} -> {n}/{d}")
     return (n, d)
@@ -409,6 +412,8 @@ def case_disj_cc(c, depth):
   # No distributions
   if not d1 and not d2:          
     n = 2 + n1 + n2 # n1, n2 are almost certainly 0
+    assert n1 == 0
+    assert n2 == 0
     d = False
     print(f"{2 * depth * ' '}<<< D of CC: {c} -> {n}/{d}")
     return (n, d)
@@ -419,11 +424,12 @@ def case_disj_cx(c, depth):
   assert n2 == 0 and not d2
   if d1: # LHS was distributed; additive increase
     n = 1 + n1
-    d = d1
+    d = True
     print(f"{2 * depth * ' '}<<< D of *X: {c} -> {n}/{d}")
     return (n, d)
   else:
     n = 2 + n1 # n1 is almost certainly 0
+    assert n1 == 0
     d = False
     print(f"{2 * depth * ' '}<<< D of CX: {c} -> {n}/{d}")
     return (n, d)
@@ -507,6 +513,7 @@ def case_conj_dc(c, depth):
     return (n, d)
   else: # Not distributed; just distributes;
     n = n1 + n2 # n2 is almost certainly 0
+    assert n2 == 0
     d = True
     print(f"{2 * depth * ' '}<<< C of DC: {c} -> {n}/{d}")
     return (n, d)
@@ -530,12 +537,13 @@ def case_conj_cd(c, depth):
     return (n, d)
   else: # Not distributed; just distributes
     n = n1 + n2 # n1 is almost certainly 0
+    assert n1 == 0
     d = True
     print(f"{2 * depth * ' '}<<< C of DC: {c} -> {n}/{d}")
     return (n, d)
 
 def case_conj_cc(c, depth):
-  # (a and b) or (p and q)
+  # (a and b) and (p and q)
   n1, n2, d1, d2 = recur(c, depth)
   if d1 and d2: # LHS and RHS were distributed; applies foil
     n = n1 * n2
@@ -546,24 +554,28 @@ def case_conj_cc(c, depth):
   # FIXME: The 2nd and 3rd cases can be combined.
   if d1 and not d2: # LHS was distributed; just distributes.
     n = n1 + n2 # n2 is almost certainly 0
+    assert n2 == 0
     d = True
     print(f"{2 * depth * ' '}<<< C of *C: {c} -> {n}/{d}")
     return (n, d)
 
   if d2 and not d1: # RHS was distributed; just distributes.
     n = n1 + n2 # n1 is almost certainly 0
+    assert n1 == 0
     d = True
     print(f"{2 * depth * ' '}<<< C of C*: {c} -> {n}/{d}")
     return (n, d)
 
   if not d1 and not d2: # Neither distributed
     n = n1 + n2 # n is almost certainly 0.
+    assert n1 == 0
+    assert n2 == 0
     d = False
     print(f"{2 * depth * ' '}<<< C of CC: {c} -> {n}/{d}")
     return (n, d)
 
 def case_conj_cx(c, depth):
-  # (a and b) or x
+  # (a and b) and x
   n1, n2, d1, d2 = recur(c, depth)
   if d1: # LHS was distributed; just distributes x across.
     n = n1
@@ -571,13 +583,14 @@ def case_conj_cx(c, depth):
     print(f"{2 * depth * ' '}<<< C of *X: {c} -> {n}/{d}")
     return (n, d)
   else:
-    n = n1
+    n = n1 # n1 is almost certainly 0
+    assert n1 == 0
     d = False
     print(f"{2 * depth * ' '}<<< C of CX: {c} -> {n}/{d}")
     return (n, d)
 
 def case_conj_xd(c, depth):
-  # x or (p or q)
+  # x and (p or q)
   # Just distributes x across.
   n1, n2, d1, d2 = recur(c, depth)
   n = n2
@@ -595,6 +608,7 @@ def case_conj_xc(c, depth):
     return (n, d)
   else: # RHS not distributed;
     n = n2 # Almost certainly 0.
+    assert n2 == 0
     d = False
     print(f"{2 * depth * ' '}<<< C of XC: {c} -> {n}/{d}")
     return (n, d)

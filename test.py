@@ -11,8 +11,8 @@ c = parse(s)
 d = dnf(c)
 # print(f"DNF:    {d}")
 
-app = approx(c)
-act = actual(d)
+app = approx_dnf(c)
+act = actual_dnf(d)
 # print(f"APPROX: {app}")
 # print(f"ACTUAL: {act}")
 

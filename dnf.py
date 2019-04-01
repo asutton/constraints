@@ -60,21 +60,22 @@ def foil(lhs, rhs, depth):
 def dnf(c, depth = 0):
   # print(f"{2 * depth * ' '}DNF: {c}")
 
-  # Already in DNF.
   if type(c) is Atom:
+    # Matches p -- can't distribute
     # print(f"{2 * depth * ' '}GOT ATOM: {c}")
     return c
 
   lhs = dnf(c.lhs, depth + 1)
   rhs = dnf(c.rhs, depth + 1)
 
-  # Already in DNF (a or b)
   if type(c) is Disj:
+    # Matches p or q -- no transformation needed.
     # print(f"{2 * depth * ' '}GOT DNF: {c}")
     return Disj(lhs, rhs)
 
-  # May not be in DNF -- may require distribution
   if type(c) is Conj:
+    # Matches p and q -- need to distribute
+    # print(f"{2 * depth * ' '}GOT DNF: {c}")
     return dist(c, lhs, rhs, depth)
 
   assert False
@@ -117,7 +118,7 @@ def approx_dnf_disj(c, depth):
       return (2, False)
     assert False
 
-  if type(lhs) is Atom:
+  if atom(lhs):
     if disj(rhs) or (conj(rhs) and d2):
       return (1 + n1 + n2, d1 or d2)
     if conj(rhs) or atom(rhs):
@@ -125,6 +126,8 @@ def approx_dnf_disj(c, depth):
     assert False
 
 def approx_dnf_conj(c, depth):
+  # Matches _ and _; distributes when either LHS or RHS is
+  # a disjunction.
   n1, n2, d1, d2 = recur_dnf(c, depth)
   lhs = c.lhs
   rhs = c.rhs
@@ -159,13 +162,13 @@ def approx_dnf_atom(c, depth):
 def approx_dnf_recur(c, depth = 0):
   print(f"{2 * depth * ' '}>>> {c}")
 
-  if type(c) is Atom: # x
+  if atom(c): # x
     return approx_dnf_atom(c, depth)
 
-  if type(c) is Disj: # _ or _
+  if disj(c): # _ or _
     return approx_dnf_disj(c, depth)
 
-  if type(c) is Conj: # _ and _
+  if conj(c): # _ and _
     return approx_dnf_conj(c, depth)
 
   assert False

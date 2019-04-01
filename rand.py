@@ -9,6 +9,11 @@ from datetime import datetime
 
 random.seed(datetime.now())
 
+runs = 100
+
+if len(sys.argv) > 1:
+  runs = int(sys.argv[1])
+
 deepest = 4
 count = 0
 
@@ -36,7 +41,6 @@ def gen(depth = 0):
   else:
     return op(Disj, depth)
 
-
 def next_file():
   files = os.listdir("input")
   last = max(list(map(lambda x: int(x.split('.')[0]), files)))
@@ -45,23 +49,27 @@ def next_file():
 # Get the next file number to generate.
 next = next_file()
 
-for i in range(1, 100):
+for i in range(runs):
   count = 0
-  c = gen()
-  print(f"IN: {c}")
-  d = dnf(c)
-  print(f"DNF:    {d}")
+  e = gen()
+  print(f"EXPR: {e}")
+  d = dnf(e)
+  print(f"DNF:  {d}")
+  c = cnf(e)
+  print(f"CNF:  {c}")
 
-  app = approx_dnf(c)
-  act = actual_dnf(d)
+  # app = approx_dnf(c)
+  dact = actual_dnf(d)
+  cact = actual_cnf(c)
 
-  print(f"APPROX: {app}")
-  print(f"ACTUAL: {act}")
+  # print(f"APPROX: {app}")
+  print(f"ACTUAL DNF: {dact}")
+  print(f"ACTUAL CNF: {cact}")
 
-  if app != act:
-    sys.stderr.write(f"* FAILED: {c}\n")
-    sys.stderr.write(f"- saved as {next}.txt\n")
-    f = open(f"input/{next}.txt", "w")
-    f.write(f"{str(c)}\n")
-    f.close()
-    next += 1
+  # if app != act:
+  #   sys.stderr.write(f"* FAILED: {c}\n")
+  #   sys.stderr.write(f"- saved as {next}.txt\n")
+  #   f = open(f"input/{next}.txt", "w")
+  #   f.write(f"{str(c)}\n")
+  #   f.close()
+  #   next += 1

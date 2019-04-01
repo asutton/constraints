@@ -120,4 +120,5 @@ def atom(c):
 
 from parse import parse
 from dnf import dnf, approx_dnf, actual_dnf
+from cnf import cnf, approx_cnf, actual_cnf
 
